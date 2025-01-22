@@ -16,7 +16,8 @@ output application/java
 {
     Title: payload.nombre,
     PathOnClient: payload.nombre ++ ".pdf",
-    VersionData: payload.contenido
+    VersionData: payload.contenido,
+    ContentLocation: 'S'
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
