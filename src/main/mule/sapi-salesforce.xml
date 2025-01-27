@@ -14,6 +14,7 @@ http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mu
 	<flow name="guardar-documento-sf">
 		<http:listener path="/documento"
 			config-ref="HTTP_Listener_config_SF" allowedMethods="POST" />
+		<logger level="INFO" doc:name="Logger" doc:id="e3b135e2-3eef-4f1f-8f26-5d7571092a73" message="#[payload]"/>
 		<ee:transform doc:name="Transform Message"
 			doc:id="232a32c9-e420-45e2-ade4-96a821cb67b5">
 			<ee:message>
@@ -23,13 +24,14 @@ output application/java
 [{
     Title: payload.nombre default "Documento",
     PathOnClient: (payload.nombre default "Documento") ++ ".pdf",
-    VersionData: (payload.contenido default "") as Binary,
+    VersionData: (payload.documentoBase64 default "") as Binary,
     ContentLocation: 'S'
 }]]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="1a22c23c-245f-4fb0-8072-5d8fe2220272" message="#[payload]"/>
 		<salesforce:create type="ContentVersion" doc:name="Create" doc:id="b87d3cd7-4b6b-4fdc-8137-6eb2445fe38e" config-ref="Salesforce_Config"/>
-		<logger level="INFO" doc:name="Logger" doc:id="cf0e36cc-61aa-48f9-9402-6a79424bb6f8" message="#[payload]"/>
+		<logger level="INFO" doc:name="LoggerDespuesDelCreate" doc:id="cf0e36cc-61aa-48f9-9402-6a79424bb6f8" message="#[write(payload, 'application/json')]"/>
 		<ee:transform doc:name="Transform Message" doc:id="e5ddf4a7-dce2-494e-b806-c0d382d9c74c" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
@@ -39,13 +41,13 @@ output application/json
     status: "SUCCESS",
     message: "Documento guardado en Salesforce",
     data: {
-        id: payload.id, // Cambiado para trabajar directamente con un objeto
-        success: payload.success
+        id: payload.items[0].payload.id, // Acceso al ID dentro de items
+        success: payload.items[0].payload.success // Acceso al success dentro de items
     }
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<logger level="INFO" doc:name="Logger" doc:id="00001623-9545-4a81-807a-1d8c3a9e313e" message='#[{&#10;    status: "SUCCESS",&#10;    message: "Documento guardado en Salesforce",&#10;    data: {&#10;        id: payload.id, // Cambiado para trabajar directamente con un objeto&#10;        success: payload.success&#10;    }&#10;}]'/>
+		<logger level="INFO" doc:name="Logger" doc:id="00001623-9545-4a81-807a-1d8c3a9e313e" message='#[{&#10;    status: "SUCCESS",&#10;    message: "Documento guardado en Salesforce",&#10;    items: {&#10;        id: payload.id, // Cambiado para trabajar directamente con un objeto&#10;        success: payload.success&#10;    }&#10;}]'/>
 
 </flow>
 	<!-- [STUDIO:"actualizar-estado-firma"]<flow name="actualizar-estado-firma" doc:id="f05a0d7a-82e9-46f6-954d-daa02edce93a" >
