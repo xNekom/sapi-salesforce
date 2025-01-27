@@ -1,27 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+<mule
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
 	xmlns:http="http://www.mulesoft.org/schema/mule/http"
-	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
 	<flow name="guardar-documento-sf">
-    <http:listener path="/documento" config-ref="HTTP_Listener_config_SF" allowedMethods="POST"/>
-		<ee:transform doc:name="Transform Message" doc:id="232a32c9-e420-45e2-ade4-96a821cb67b5" >
-			<ee:message >
-				<ee:set-payload ><![CDATA[%dw 2.0
+		<http:listener path="/documento"
+			config-ref="HTTP_Listener_config_SF" allowedMethods="POST" />
+		<logger level="INFO" doc:name="Logger" doc:id="e3b135e2-3eef-4f1f-8f26-5d7571092a73" message="#[payload]"/>
+		<ee:transform doc:name="Transform Message"
+			doc:id="232a32c9-e420-45e2-ade4-96a821cb67b5">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
 output application/java
 ---
-{
-    Title: payload.nombre,
-    PathOnClient: payload.nombre ++ ".pdf",
-    VersionData: payload.contenido,
+[{
+    Title: payload.nombre default "Documento",
+    PathOnClient: (payload.nombre default "Documento") ++ ".pdf",
+    VersionData: (payload.documentoBase64 default "") as Binary,
     ContentLocation: 'S'
-}]]></ee:set-payload>
+}]]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="1a22c23c-245f-4fb0-8072-5d8fe2220272" message="#[payload]"/>
 		<salesforce:create type="ContentVersion" doc:name="Create" doc:id="b87d3cd7-4b6b-4fdc-8137-6eb2445fe38e" config-ref="Salesforce_Config"/>
+		<logger level="INFO" doc:name="LoggerDespuesDelCreate" doc:id="cf0e36cc-61aa-48f9-9402-6a79424bb6f8" message="#[write(payload, 'application/json')]"/>
 		<ee:transform doc:name="Transform Message" doc:id="e5ddf4a7-dce2-494e-b806-c0d382d9c74c" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
@@ -31,25 +41,26 @@ output application/json
     status: "SUCCESS",
     message: "Documento guardado en Salesforce",
     data: {
-        id: payload[0].id,
-        success: payload[0].success
+        id: payload.items[0].payload.id, // Acceso al ID dentro de items
+        success: payload.items[0].payload.success // Acceso al success dentro de items
     }
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="00001623-9545-4a81-807a-1d8c3a9e313e" message='#[{&#10;    status: "SUCCESS",&#10;    message: "Documento guardado en Salesforce",&#10;    items: {&#10;        id: payload.id, // Cambiado para trabajar directamente con un objeto&#10;        success: payload.success&#10;    }&#10;}]'/>
 
 </flow>
-	<flow name="actualizar-estado-firma" doc:id="f05a0d7a-82e9-46f6-954d-daa02edce93a" >
+	<!-- [STUDIO:"actualizar-estado-firma"]<flow name="actualizar-estado-firma" doc:id="f05a0d7a-82e9-46f6-954d-daa02edce93a" >
 		<http:listener doc:name="" doc:id="364809d9-7bc9-4ae5-aa27-bc13c45560a8" config-ref="HTTP_Listener_config_SF" path="/estado" allowedMethods="PUT"/>
 		<ee:transform doc:name="Transform Message" doc:id="8facfb3b-e569-4f45-9465-3b6c06ca5ce0" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/java
----
+&#45;&#45;-
 {
     Id: payload.id,
     Estado_Firma__c: payload.estado
-}]]></ee:set-payload>
+}&#93;&#93;></ee:set-payload>
 			</ee:message>
 		</ee:transform>
 		<salesforce:update type="Opportunity" doc:name="Update" doc:id="265c6fd4-c7b6-42f0-beb4-92853d98aa62" config-ref="Salesforce_Config"/>
@@ -57,18 +68,18 @@ output application/java
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
----
+&#45;&#45;-
 {
     status: "SUCCESS",
     message: "Estado actualizado en Salesforce",
     data: {
-        id: payload[0].id,
-        success: payload[0].success
+        id: payload[0&#93;.id,
+        success: payload[0&#93;.success
     }
-}]]></ee:set-payload>
+}&#93;&#93;></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-	</flow>
+	</flow> [STUDIO] -->
 	<flow name="obtener-datos-oportunidad" doc:id="017b0fbe-9ffb-4632-8f80-ae9a58a3d40b" >
 		<http:listener doc:name="Listener" doc:id="b2ffff5e-0357-496b-ac5b-6fa855771099" config-ref="HTTP_Listener_config_SF" path="/oportunidad/{id}" allowedMethods="GET"/>
 		<salesforce:query doc:name="Query" doc:id="79539aaf-bbdf-4b37-b14c-d958d633c626" config-ref="Salesforce_Config">
